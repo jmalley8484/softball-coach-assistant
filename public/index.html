@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🥎 10U Softball Coach Assistant</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="header-inner">
+      <h1>🥎 10U Softball Coach Assistant</h1>
+      <div id="phase-badge" class="phase-badge loading">Loading season phase...</div>
+    </div>
+  </header>
+
+  <!-- Tab Nav -->
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="plan">📋 Practice Plan</button>
+    <button class="tab-btn" data-tab="chat">💬 Ask Coach</button>
+    <button class="tab-btn" data-tab="season">📅 Season Phase</button>
+    <button class="tab-btn" data-tab="research">🔍 Research</button>
+  </nav>
+
+  <!-- Main Content -->
+  <main>
+
+    <!-- === TAB: PRACTICE PLAN === -->
+    <section id="tab-plan" class="tab-content active">
+      <div class="card">
+        <h2>Generate Practice Plan</h2>
+        <form id="plan-form" class="plan-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="location">Practice Location</label>
+              <select id="location" name="location">
+                <option value="Indoor Dome">Indoor Dome</option>
+                <option value="Batting Cage" selected>Batting Cage</option>
+                <option value="Outdoor Field">Outdoor Field</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="duration">Duration</label>
+              <select id="duration" name="duration">
+                <option value="60">60 minutes</option>
+                <option value="90" selected>90 minutes</option>
+                <option value="120">120 minutes</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="players">Players</label>
+              <select id="players" name="players">
+                <option value="6-8">6-8 players</option>
+                <option value="9-11" selected>9-11 players</option>
+                <option value="12-14">12-14 players</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group full-width">
+              <label for="focus">Primary Focus</label>
+              <select id="focus" name="focus">
+                <option value="Hitting fundamentals and tee work">Hitting — Fundamentals &amp; Tee Work</option>
+                <option value="Throwing mechanics and daily progressions">Throwing — Mechanics &amp; Daily Progressions</option>
+                <option value="Fielding — EDDs, ground balls, positioning">Fielding — EDDs &amp; Ground Balls</option>
+                <option value="Balanced mixed practice covering hitting, fielding, and throwing">Mixed — Balanced Practice</option>
+                <option value="Baserunning and situational softball">Baserunning &amp; Situations</option>
+                <option value="Game prep and situational softball">Game Prep &amp; Situational Softball</option>
+                <option value="Pitching and catching development">Pitching &amp; Catching Development</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group full-width">
+              <label for="notes">Additional Notes <span class="optional">(optional)</span></label>
+              <input type="text" id="notes" name="notes" placeholder="e.g. First practice of the season, focus on fun and team building">
+            </div>
+          </div>
+          <button type="submit" class="btn-primary" id="plan-submit">
+            <span class="btn-icon">📋</span> Generate Practice Plan
+          </button>
+        </form>
+      </div>
+
+      <div id="plan-output" class="output-area hidden">
+        <div class="output-header">
+          <h3>Your Practice Plan</h3>
+          <div class="output-actions">
+            <button class="btn-secondary" onclick="copyOutput('plan-output-text')">📋 Copy</button>
+            <button class="btn-secondary" onclick="printOutput('plan-output-text')">🖨️ Print</button>
+            <button class="btn-ghost" onclick="clearOutput('plan-output')">✕ Clear</button>
+          </div>
+        </div>
+        <div id="plan-output-text" class="output-text"></div>
+      </div>
+    </section>
+
+    <!-- === TAB: ASK COACH (CHAT) === -->
+    <section id="tab-chat" class="tab-content hidden">
+      <div class="card chat-card">
+        <h2>Ask Your Coaching Assistant</h2>
+        <p class="subtitle">Ask anything — drill explanations, swing mechanics, game situations, player development, rules...</p>
+
+        <div id="chat-messages" class="chat-messages">
+          <div class="chat-message assistant">
+            <div class="chat-bubble">
+              Hey Coach! I'm your 10U softball assistant. Ask me anything — how to teach the backhand, what to work on this week, how to run a cage practice, or how to develop your pitcher. What's on your mind?
+            </div>
+          </div>
+        </div>
+
+        <form id="chat-form" class="chat-input-area">
+          <textarea
+            id="chat-input"
+            placeholder="Ask a coaching question..."
+            rows="2"
+          ></textarea>
+          <button type="submit" class="btn-primary" id="chat-submit">Send</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- === TAB: SEASON PHASE === -->
+    <section id="tab-season" class="tab-content hidden">
+      <div id="season-loading" class="card center-text">
+        <p>Loading season information...</p>
+      </div>
+
+      <div id="season-content" class="hidden">
+        <div class="card phase-card">
+          <div class="phase-header">
+            <span id="phase-emoji" class="phase-emoji"></span>
+            <div>
+              <h2 id="phase-name"></h2>
+              <p id="phase-date" class="phase-date"></p>
+            </div>
+          </div>
+          <p id="phase-description" class="phase-description"></p>
+          <div class="phase-type-badges" id="phase-types"></div>
+        </div>
+
+        <div class="two-col">
+          <div class="card">
+            <h3>✅ Focus This Phase</h3>
+            <ul id="phase-focus" class="focus-list"></ul>
+          </div>
+          <div class="card">
+            <h3>⚠️ Hold Off On</h3>
+            <ul id="phase-avoid" class="avoid-list"></ul>
+            <div id="phase-avoid-empty" class="empty-note hidden">Nothing off-limits — full access!</div>
+          </div>
+        </div>
+
+        <div class="card tip-card">
+          <h3>💡 Coach's Tip</h3>
+          <p id="phase-tip"></p>
+        </div>
+
+        <div id="next-phase-card" class="card next-phase hidden">
+          <h3>Coming Up Next</h3>
+          <div class="next-phase-content">
+            <span id="next-phase-emoji"></span>
+            <div>
+              <strong id="next-phase-name"></strong>
+              <p id="next-phase-desc"></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>📅 Full Season Calendar</h3>
+          <div class="season-timeline">
+            <div class="timeline-item">
+              <span class="tl-icon">🏟️</span>
+              <div><strong>March — Mid April</strong><br>Indoor Dome — Fundamentals</div>
+            </div>
+            <div class="timeline-item">
+              <span class="tl-icon">⚾</span>
+              <div><strong>April</strong><br>Cage Access — Hitting Development</div>
+            </div>
+            <div class="timeline-item">
+              <span class="tl-icon">🌱</span>
+              <div><strong>Late April — Early May</strong><br>Outdoor Fields — Full Team Defense</div>
+            </div>
+            <div class="timeline-item">
+              <span class="tl-icon">🏆</span>
+              <div><strong>Mid May — Late June</strong><br>League Games (Big West starts ~2nd week of May)</div>
+            </div>
+            <div class="timeline-item">
+              <span class="tl-icon">🥇</span>
+              <div><strong>Late June — July</strong><br>State Qualifiers &amp; State Tournament</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- === TAB: RESEARCH === -->
+    <section id="tab-research" class="tab-content hidden">
+      <div class="card">
+        <h2>Research a Skill or Drill</h2>
+        <p class="subtitle">Enter any softball topic — I'll give you coaching cues, drills, and Megrem Softball search suggestions.</p>
+        <form id="research-form" class="research-form">
+          <div class="research-input-row">
+            <input
+              type="text"
+              id="research-input"
+              placeholder="e.g. backhand fielding, drop step, front toss, bunt defense..."
+            >
+            <button type="submit" class="btn-primary" id="research-submit">
+              🔍 Research
+            </button>
+          </div>
+          <div class="quick-topics">
+            <span class="quick-label">Quick topics:</span>
+            <button type="button" class="quick-btn" data-topic="backhand fielding">Backhand</button>
+            <button type="button" class="quick-btn" data-topic="throwing mechanics and arm path">Throwing</button>
+            <button type="button" class="quick-btn" data-topic="front toss hitting drill">Front Toss</button>
+            <button type="button" class="quick-btn" data-topic="drop step outfield fly ball">Drop Step</button>
+            <button type="button" class="quick-btn" data-topic="bunt defense">Bunt Defense</button>
+            <button type="button" class="quick-btn" data-topic="first and third defense">1st &amp; 3rd</button>
+            <button type="button" class="quick-btn" data-topic="pitching mechanics 10U">Pitching</button>
+            <button type="button" class="quick-btn" data-topic="catching blocking balls in the dirt">Blocking</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="research-output" class="output-area hidden">
+        <div class="output-header">
+          <h3 id="research-output-title">Research Results</h3>
+          <div class="output-actions">
+            <button class="btn-secondary" onclick="copyOutput('research-output-text')">📋 Copy</button>
+            <button class="btn-ghost" onclick="clearOutput('research-output')">✕ Clear</button>
+          </div>
+        </div>
+        <div id="research-output-text" class="output-text"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast notification -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
