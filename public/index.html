@@ -92,17 +92,24 @@
           <div class="output-actions">
             <button class="btn-secondary" onclick="copyOutput('plan-output-text')">📋 Copy</button>
             <button class="btn-secondary" onclick="printOutput('plan-output-text')">🖨️ Print</button>
+            <button class="btn-secondary" id="plan-edit-btn">✏️ Edit Plan</button>
+            <button class="btn-secondary hidden" id="plan-save-btn" onclick="showToast('Plan auto-saved')">✅ Saved</button>
             <button class="btn-ghost" onclick="clearOutput('plan-output')">✕ Clear</button>
           </div>
         </div>
         <div id="plan-output-text" class="output-text"></div>
+        <textarea id="plan-edit-area" class="plan-edit-textarea hidden" rows="30"></textarea>
+        <div id="plan-edit-controls" class="plan-edit-controls hidden">
+          <button class="btn-primary" id="plan-edit-save">💾 Save Changes</button>
+          <button class="btn-ghost" id="plan-edit-cancel">Cancel</button>
+        </div>
       </div>
     </section>
 
     <!-- === TAB: LOG PRACTICE === -->
     <section id="tab-log" class="tab-content hidden">
       <div class="card">
-        <h2>Log Today's Practice</h2>
+        <h2 id="log-form-title">Log Today's Practice</h2>
         <p class="subtitle">Record what you actually did — the AI will use this to build better plans going forward.</p>
         <form id="log-form" class="plan-form">
           <div class="form-row">
@@ -137,9 +144,9 @@
           </div>
 
           <div class="form-group full-width" style="margin-bottom: 14px;">
-            <label>What We Worked On <span class="optional">(check all that apply + enter minutes)</span></label>
-            <div id="category-grid" class="category-grid">
-              <!-- Populated by JS -->
+            <label>Drills Worked On <span class="optional">(check specific drills + enter minutes)</span></label>
+            <div id="drill-picker">
+              <p class="empty-note" style="padding:10px">Loading drills...</p>
             </div>
           </div>
 
@@ -171,6 +178,7 @@
           <button type="submit" class="btn-primary" id="log-submit">
             💾 Save Practice Log
           </button>
+          <button type="button" id="log-cancel-edit" class="btn-secondary hidden" style="margin-left:8px">✕ Cancel Edit</button>
         </form>
       </div>
 
@@ -213,6 +221,14 @@
             <!-- Populated by JS -->
           </div>
           <p id="no-data-note" class="empty-note hidden">Log some practices to see your breakdown.</p>
+        </div>
+
+        <!-- Drill Frequency -->
+        <div class="card">
+          <h3>🔁 Drill Frequency (Season)</h3>
+          <div id="drill-frequency" class="drill-frequency">
+            <p class="empty-note">No drills logged yet.</p>
+          </div>
         </div>
 
         <!-- Needs Attention -->

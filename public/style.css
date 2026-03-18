@@ -642,3 +642,103 @@ select:focus, input[type="text"]:focus, textarea:focus {
 
 /* Attention list */
 .attention-list { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+
+/* Drill Picker */
+.drill-category-section {
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.drill-cat-header {
+  background: var(--cat-bg, var(--gray-100));
+  color: var(--cat-color, var(--gray-700));
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--gray-200);
+}
+.drill-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 2px;
+  padding: 8px;
+  background: var(--white);
+}
+.drill-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 8px;
+  border-radius: 4px;
+  transition: background 0.1s;
+}
+.drill-item:hover { background: var(--gray-100); }
+.drill-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 400;
+  color: var(--gray-700);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-bottom: 0;
+  flex: 1;
+}
+.drill-check { width: 15px; height: 15px; cursor: pointer; flex-shrink: 0; }
+.drill-name { flex: 1; }
+.skill-badge {
+  font-size: 0.68rem;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 600;
+  text-transform: capitalize;
+  flex-shrink: 0;
+}
+.skill-beginner { background: #e8f5e9; color: #27ae60; }
+.skill-intermediate { background: #fdf3e3; color: #c8861e; }
+.skill-advanced { background: #fdf0ef; color: #c0392b; }
+.drill-minutes { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.custom-drill-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--gray-100);
+  border-top: 1px solid var(--gray-200);
+}
+.custom-drill-input {
+  flex: 1;
+  font-size: 0.82rem;
+  padding: 5px 8px;
+}
+
+/* Plan edit */
+.plan-edit-textarea {
+  width: 100%;
+  min-height: 400px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  padding: 16px 20px;
+  border: none;
+  border-top: 2px solid var(--gold);
+  resize: vertical;
+  line-height: 1.6;
+}
+.plan-edit-controls {
+  display: flex;
+  gap: 10px;
+  padding: 12px 20px;
+  background: var(--gold-light);
+  border-top: 1px solid var(--gray-200);
+}
+
+/* Drill frequency */
+.drill-frequency { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.freq-row { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; }
+.freq-name { width: 200px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.freq-bar-wrap { flex: 1; height: 10px; background: var(--gray-200); border-radius: 5px; overflow: hidden; }
+.freq-bar { display: block; height: 100%; background: var(--green); border-radius: 5px; }
+.freq-count { width: 30px; text-align: right; color: var(--gray-500); font-weight: 600; flex-shrink: 0; }
