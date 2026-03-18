@@ -19,6 +19,8 @@
   <!-- Tab Nav -->
   <nav class="tab-nav">
     <button class="tab-btn active" data-tab="plan">📋 Practice Plan</button>
+    <button class="tab-btn" data-tab="log">📝 Log Practice</button>
+    <button class="tab-btn" data-tab="dashboard">📊 Dashboard</button>
     <button class="tab-btn" data-tab="chat">💬 Ask Coach</button>
     <button class="tab-btn" data-tab="season">📅 Season Phase</button>
     <button class="tab-btn" data-tab="research">🔍 Research</button>
@@ -37,7 +39,7 @@
               <label for="location">Practice Location</label>
               <select id="location" name="location">
                 <option value="Indoor Dome">Indoor Dome</option>
-                <option value="Batting Cage" selected>Batting Cage</option>
+                <option value="Batting Cage (15x60)" selected>Batting Cage</option>
                 <option value="Outdoor Field">Outdoor Field</option>
               </select>
             </div>
@@ -97,6 +99,139 @@
       </div>
     </section>
 
+    <!-- === TAB: LOG PRACTICE === -->
+    <section id="tab-log" class="tab-content hidden">
+      <div class="card">
+        <h2>Log Today's Practice</h2>
+        <p class="subtitle">Record what you actually did — the AI will use this to build better plans going forward.</p>
+        <form id="log-form" class="plan-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="log-date">Date</label>
+              <input type="date" id="log-date" name="date">
+            </div>
+            <div class="form-group">
+              <label for="log-location">Location</label>
+              <select id="log-location" name="location">
+                <option value="Indoor Dome">Indoor Dome</option>
+                <option value="Batting Cage (15x60)" selected>Batting Cage</option>
+                <option value="Outdoor Field">Outdoor Field</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="log-duration">Duration</label>
+              <select id="log-duration" name="duration">
+                <option value="60">60 min</option>
+                <option value="90" selected>90 min</option>
+                <option value="120">120 min</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="log-players">Players</label>
+              <select id="log-players" name="players">
+                <option value="6-8">6-8</option>
+                <option value="9-11" selected>9-11</option>
+                <option value="12-14">12-14</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group full-width" style="margin-bottom: 14px;">
+            <label>What We Worked On <span class="optional">(check all that apply + enter minutes)</span></label>
+            <div id="category-grid" class="category-grid">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group full-width">
+              <label for="log-end-game">🎮 Closing Game <span class="optional">(what game did you end with?)</span></label>
+              <input type="text" id="log-end-game" name="endGame" placeholder="e.g. Home Run Derby, Fielding Olympics, Around the World, mini scrimmage...">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="log-wins">✅ Wins — What went well</label>
+              <textarea id="log-wins" name="wins" rows="3" placeholder="e.g. Great contact on tee work, everyone was engaged..."></textarea>
+            </div>
+            <div class="form-group">
+              <label for="log-improvements">🔧 Needs Work — Focus next time</label>
+              <textarea id="log-improvements" name="improvements" rows="3" placeholder="e.g. Follow-through on throws, footwork on ground balls..."></textarea>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group full-width">
+              <label for="log-notes">Notes <span class="optional">(optional)</span></label>
+              <input type="text" id="log-notes" name="notes" placeholder="e.g. Short practice due to weather, worked in 15x60 cage">
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary" id="log-submit">
+            💾 Save Practice Log
+          </button>
+        </form>
+      </div>
+
+      <!-- Past Logs -->
+      <div class="card">
+        <h3>📚 Practice History</h3>
+        <div id="log-history" class="log-history">
+          <p class="empty-note">No practices logged yet.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- === TAB: DASHBOARD === -->
+    <section id="tab-dashboard" class="tab-content hidden">
+      <div id="dashboard-loading" class="card center-text">
+        <p>Loading season stats...</p>
+      </div>
+      <div id="dashboard-content" class="hidden">
+
+        <!-- Stat Cards -->
+        <div class="stat-cards">
+          <div class="stat-card">
+            <div class="stat-value" id="stat-practices">0</div>
+            <div class="stat-label">Practices</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-minutes">0</div>
+            <div class="stat-label">Total Minutes</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-last">—</div>
+            <div class="stat-label">Last Practice</div>
+          </div>
+        </div>
+
+        <!-- Category Breakdown -->
+        <div class="card">
+          <h3>⏱️ Time by Category (Season Total)</h3>
+          <div id="category-bars" class="category-bars">
+            <!-- Populated by JS -->
+          </div>
+          <p id="no-data-note" class="empty-note hidden">Log some practices to see your breakdown.</p>
+        </div>
+
+        <!-- Needs Attention -->
+        <div id="attention-card" class="card tip-card hidden">
+          <h3>⚠️ Hasn't Been Worked On Recently</h3>
+          <div id="attention-list" class="attention-list"></div>
+        </div>
+
+        <!-- Recent Practices -->
+        <div class="card">
+          <h3>📋 Recent Practices</h3>
+          <div id="dashboard-recent" class="dashboard-recent">
+            <p class="empty-note">No practices logged yet. Use the 📝 Log Practice tab after each practice.</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
     <!-- === TAB: ASK COACH (CHAT) === -->
     <section id="tab-chat" class="tab-content hidden">
       <div class="card chat-card">
@@ -112,11 +247,7 @@
         </div>
 
         <form id="chat-form" class="chat-input-area">
-          <textarea
-            id="chat-input"
-            placeholder="Ask a coaching question..."
-            rows="2"
-          ></textarea>
+          <textarea id="chat-input" placeholder="Ask a coaching question..." rows="2"></textarea>
           <button type="submit" class="btn-primary" id="chat-submit">Send</button>
         </form>
       </div>
@@ -204,14 +335,8 @@
         <p class="subtitle">Enter any softball topic — I'll give you coaching cues, drills, and Megrem Softball search suggestions.</p>
         <form id="research-form" class="research-form">
           <div class="research-input-row">
-            <input
-              type="text"
-              id="research-input"
-              placeholder="e.g. backhand fielding, drop step, front toss, bunt defense..."
-            >
-            <button type="submit" class="btn-primary" id="research-submit">
-              🔍 Research
-            </button>
+            <input type="text" id="research-input" placeholder="e.g. backhand fielding, drop step, front toss, bunt defense...">
+            <button type="submit" class="btn-primary" id="research-submit">🔍 Research</button>
           </div>
           <div class="quick-topics">
             <span class="quick-label">Quick topics:</span>

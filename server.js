@@ -4,11 +4,12 @@ const path = require('path');
 const fs = require('fs');
 const Anthropic = require('@anthropic-ai/sdk');
 const { getCurrentPhase, getNextPhase } = require('./data/season-phases');
+const { DRILL_CATEGORIES } = require('./data/drill-categories');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Load system prompt once at startup — cached for 1 hour to reduce API costs
+// Load system prompt once at startup
 const systemPromptPath = path.join(__dirname, 'data', 'system-prompt.md');
 const SYSTEM_PROMPT = [
   {
@@ -18,14 +19,50 @@ const SYSTEM_PROMPT = [
   },
 ];
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- Season Phase Endpoint ---
+// ---- Practice Log Helpers ----
+const PRACTICE_LOG_PATH = path.join(__dirname, 'data', 'practice-log.json');
+
+function loadPracticeLog() {
+  try {
+    return JSON.parse(fs.readFileSync(PRACTICE_LOG_PATH, 'utf8'));
+  } catch {
+    return { practices: [] };
+  }
+}
+
+function savePracticeLog(data) {
+  fs.writeFileSync(PRACTICE_LOG_PATH, JSON.stringify(data, null, 2));
+}
+
+function buildHistoryContext(limit = 5) {
+  const { practices } = loadPracticeLog();
+  if (!practices.length) return '';
+
+  const recent = practices.slice(0, limit);
+  let ctx = `\n\nRECENT PRACTICE HISTORY (last ${recent.length} practices — use this to avoid repetition and address improvement areas):\n`;
+  recent.forEach(p => {
+    const dateStr = new Date(p.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    ctx += `• ${dateStr} @ ${p.location} (${p.duration} min)`;
+    if (p.categories) {
+      const worked = DRILL_CATEGORIES
+        .filter(c => (p.categories[c.id] || 0) > 0)
+        .map(c => `${c.label} ${p.categories[c.id]}min`)
+        .join(', ');
+      if (worked) ctx += ` — ${worked}`;
+    }
+    if (p.endGame) ctx += ` | Ended with: ${p.endGame}`;
+    if (p.improvements) ctx += ` | Needs work: ${p.improvements}`;
+    ctx += '\n';
+  });
+  return ctx;
+}
+
+// ---- Season Phase ----
 app.get('/api/season-phase', (req, res) => {
   const today = new Date();
   const phase = getCurrentPhase(today);
@@ -37,15 +74,88 @@ app.get('/api/season-phase', (req, res) => {
   });
 });
 
-// --- Chat / Ask Endpoint (streaming SSE) ---
-app.post('/api/chat', async (req, res) => {
-  const { messages, mode } = req.body;
+// ---- Drill Categories ----
+app.get('/api/drill-categories', (req, res) => {
+  res.json(DRILL_CATEGORIES);
+});
 
+// ---- Practice Log CRUD ----
+app.get('/api/practice-log', (req, res) => {
+  res.json(loadPracticeLog());
+});
+
+app.post('/api/practice-log', (req, res) => {
+  const log = loadPracticeLog();
+  const entry = {
+    id: Date.now().toString(),
+    date: req.body.date || new Date().toISOString().split('T')[0],
+    location: req.body.location || '',
+    duration: parseInt(req.body.duration) || 90,
+    players: req.body.players || '9-11',
+    categories: req.body.categories || {},
+    endGame: req.body.endGame || '',
+    wins: req.body.wins || '',
+    improvements: req.body.improvements || '',
+    notes: req.body.notes || '',
+  };
+  log.practices.unshift(entry);
+  savePracticeLog(log);
+  res.json({ success: true, entry });
+});
+
+app.delete('/api/practice-log/:id', (req, res) => {
+  const log = loadPracticeLog();
+  log.practices = log.practices.filter(p => p.id !== req.params.id);
+  savePracticeLog(log);
+  res.json({ success: true });
+});
+
+// ---- Practice Stats ----
+app.get('/api/practice-stats', (req, res) => {
+  const { practices } = loadPracticeLog();
+
+  const categoryTotals = {};
+  DRILL_CATEGORIES.forEach(c => { categoryTotals[c.id] = 0; });
+
+  practices.forEach(p => {
+    if (p.categories) {
+      Object.entries(p.categories).forEach(([id, mins]) => {
+        if (categoryTotals[id] !== undefined) categoryTotals[id] += (Number(mins) || 0);
+      });
+    }
+  });
+
+  // Find categories not worked in last 2 practices
+  const recentTwo = practices.slice(0, 2);
+  const recentIds = new Set();
+  recentTwo.forEach(p => {
+    if (p.categories) {
+      Object.entries(p.categories).forEach(([id, mins]) => {
+        if (mins > 0) recentIds.add(id);
+      });
+    }
+  });
+  const needsAttention = DRILL_CATEGORIES
+    .filter(c => !recentIds.has(c.id) && categoryTotals[c.id] === 0 ? false : !recentIds.has(c.id))
+    .map(c => c.id);
+
+  res.json({
+    categoryTotals,
+    totalPractices: practices.length,
+    totalMinutes: practices.reduce((s, p) => s + (p.duration || 0), 0),
+    lastPractice: practices[0] || null,
+    needsAttention,
+    practices,
+  });
+});
+
+// ---- Chat (streaming SSE) ----
+app.post('/api/chat', async (req, res) => {
+  const { messages } = req.body;
   if (!messages || !Array.isArray(messages)) {
     return res.status(400).json({ error: 'messages array required' });
   }
 
-  // Set up SSE headers
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -59,14 +169,12 @@ app.post('/api/chat', async (req, res) => {
 Current season phase: ${phase.name} — ${phase.description}
 Practice types currently available: ${phase.practiceTypes.join(', ')}
 Current focus areas: ${phase.focusAreas.join('; ')}
+${buildHistoryContext(3)}
 
 `;
 
-  // Inject date/phase context into the first user message
   const enrichedMessages = messages.map((msg, i) => {
-    if (i === 0 && msg.role === 'user') {
-      return { ...msg, content: contextPrefix + msg.content };
-    }
+    if (i === 0 && msg.role === 'user') return { ...msg, content: contextPrefix + msg.content };
     return msg;
   });
 
@@ -80,11 +188,9 @@ Current focus areas: ${phase.focusAreas.join('; ')}
 
     for await (const event of stream) {
       if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-        const data = JSON.stringify({ type: 'text', text: event.delta.text });
-        res.write(`data: ${data}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: 'text', text: event.delta.text })}\n\n`);
       }
     }
-
     res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
     res.end();
   } catch (err) {
@@ -94,7 +200,7 @@ Current focus areas: ${phase.focusAreas.join('; ')}
   }
 });
 
-// --- Practice Plan Generator Endpoint (streaming SSE) ---
+// ---- Practice Plan Generator (streaming SSE) ----
 app.post('/api/practice-plan', async (req, res) => {
   const { location, duration, players, focus, notes } = req.body;
 
@@ -106,6 +212,7 @@ app.post('/api/practice-plan', async (req, res) => {
   const today = new Date();
   const phase = getCurrentPhase(today);
   const dateStr = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const historyContext = buildHistoryContext(5);
 
   const prompt = `Generate a complete, detailed practice plan for today.
 
@@ -116,12 +223,14 @@ Duration: ${duration} minutes
 Number of Players: ${players || '10-12'}
 Primary Focus: ${focus}
 Additional Notes: ${notes || 'None'}
+${historyContext}
 
 Please create a fully structured practice plan following the standard format:
 - Use the team structure from our sample practice (bands, huddle, dynamic warmup, throwing progression, fielding EDDs, hitting, huddle)
 - Include specific drill names, time allocations, group rotations, and coaching cues
 - Include the daily throwing progression and fielding EDDs
 - Adapt the plan for the current season phase and location (${location})
+- ALWAYS end the practice with a fun game or competition drill (e.g. Home Run Derby, Small-sided scrimmage, Fielding Olympics, Around the World, etc.) — this is required, not optional
 - End with Team Goals (Have fun! Be a great Teammate! Get better every day!)
 - Add a "Megrem Softball Reference" section at the end with 2-3 relevant YouTube search suggestions
 
@@ -137,11 +246,9 @@ Format it cleanly so it can be printed and brought to practice.`;
 
     for await (const event of stream) {
       if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-        const data = JSON.stringify({ type: 'text', text: event.delta.text });
-        res.write(`data: ${data}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: 'text', text: event.delta.text })}\n\n`);
       }
     }
-
     res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
     res.end();
   } catch (err) {
@@ -151,7 +258,7 @@ Format it cleanly so it can be printed and brought to practice.`;
   }
 });
 
-// --- Megrem Research Endpoint (streaming SSE) ---
+// ---- Research (streaming SSE) ----
 app.post('/api/research', async (req, res) => {
   const { topic } = req.body;
 
@@ -182,11 +289,9 @@ Keep it practical and immediately usable at practice.`;
 
     for await (const event of stream) {
       if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-        const data = JSON.stringify({ type: 'text', text: event.delta.text });
-        res.write(`data: ${data}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: 'text', text: event.delta.text })}\n\n`);
       }
     }
-
     res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
     res.end();
   } catch (err) {

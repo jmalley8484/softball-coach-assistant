@@ -479,3 +479,166 @@ select:focus, input[type="text"]:focus, textarea:focus {
   .output-text { padding: 14px; font-size: 0.88rem; }
   .chat-bubble { max-width: 90%; }
 }
+
+/* ---- LOG PRACTICE ---- */
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+.category-item {
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: var(--white);
+  transition: border-color 0.15s, background 0.15s;
+}
+.category-item:has(.cat-check:checked) {
+  border-color: var(--cat-color);
+  background: var(--cat-bg);
+}
+.cat-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--gray-700);
+  flex: 1;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-bottom: 0;
+}
+.cat-check { width: 16px; height: 16px; cursor: pointer; accent-color: var(--cat-color); }
+.cat-emoji { font-size: 1.1rem; }
+.cat-minutes {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.cat-min-input {
+  width: 52px;
+  padding: 4px 6px;
+  font-size: 0.85rem;
+  text-align: center;
+}
+.cat-min-label { font-size: 0.78rem; color: var(--gray-500); }
+
+/* Log History */
+.log-history { display: flex; flex-direction: column; gap: 12px; }
+.log-entry {
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  background: var(--gray-100);
+}
+.log-entry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.log-entry-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.88rem;
+}
+.log-badge {
+  background: var(--white);
+  border: 1px solid var(--gray-300);
+  border-radius: 12px;
+  padding: 2px 9px;
+  font-size: 0.78rem;
+  color: var(--gray-700);
+}
+.cat-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.cat-tag {
+  border: 1px solid;
+  border-radius: 12px;
+  padding: 2px 9px;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+.log-field { font-size: 0.85rem; color: var(--gray-700); margin-top: 4px; }
+.log-field-label { font-weight: 600; }
+
+/* ---- DASHBOARD ---- */
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.stat-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--green);
+  line-height: 1.1;
+}
+.stat-label {
+  font-size: 0.82rem;
+  color: var(--gray-500);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-top: 4px;
+}
+@media (max-width: 480px) {
+  .stat-cards { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .stat-value { font-size: 1.4rem; }
+  .stat-card { padding: 14px 10px; }
+}
+
+/* Category bars */
+.category-bars { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.cat-bar-row { display: flex; align-items: center; gap: 10px; }
+.cat-bar-label { width: 140px; font-size: 0.85rem; font-weight: 500; flex-shrink: 0; }
+.cat-bar-track {
+  flex: 1;
+  height: 14px;
+  background: var(--gray-200);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.cat-bar-fill {
+  height: 100%;
+  border-radius: 7px;
+  transition: width 0.5s ease;
+  min-width: 4px;
+}
+.cat-bar-val { width: 55px; font-size: 0.82rem; color: var(--gray-500); text-align: right; flex-shrink: 0; }
+
+/* Recent practices */
+.dashboard-recent { display: flex; flex-direction: column; gap: 8px; }
+.recent-practice-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--gray-100);
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  flex-wrap: wrap;
+}
+.recent-date { font-weight: 600; min-width: 80px; flex-shrink: 0; }
+.recent-details { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.recent-cats { color: var(--gray-700); font-size: 0.82rem; }
+.recent-game { color: var(--green); font-size: 0.82rem; font-weight: 500; }
+
+/* Attention list */
+.attention-list { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
