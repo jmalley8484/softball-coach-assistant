@@ -1,9 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html class="dark" lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🥎 10U Softball Coach Assistant</title>
+  <title>SOFTBALL COACH | 10U Assistant</title>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,19 +13,18 @@
   <!-- Header -->
   <header>
     <div class="header-inner">
-      <h1>🥎 10U Softball Coach Assistant</h1>
+      <div class="header-brand">SOFTBALL COACH</div>
       <div id="phase-badge" class="phase-badge loading">Loading season phase...</div>
     </div>
   </header>
 
-  <!-- Tab Nav -->
   <nav class="tab-nav">
-    <button class="tab-btn active" data-tab="plan">📋 Practice Plan</button>
-    <button class="tab-btn" data-tab="log">📝 Log Practice</button>
-    <button class="tab-btn" data-tab="dashboard">📊 Dashboard</button>
-    <button class="tab-btn" data-tab="chat">💬 Ask Coach</button>
-    <button class="tab-btn" data-tab="season">📅 Season Phase</button>
-    <button class="tab-btn" data-tab="research">🔍 Research</button>
+    <button class="tab-btn active" data-tab="plan"><span class="material-symbols-outlined">calendar_today</span> Practice Plan</button>
+    <button class="tab-btn" data-tab="log"><span class="material-symbols-outlined">edit_note</span> Log Practice</button>
+    <button class="tab-btn" data-tab="dashboard"><span class="material-symbols-outlined">bar_chart</span> Dashboard</button>
+    <button class="tab-btn" data-tab="chat"><span class="material-symbols-outlined">psychology</span> Ask Coach</button>
+    <button class="tab-btn" data-tab="season"><span class="material-symbols-outlined">event</span> Season Phase</button>
+    <button class="tab-btn" data-tab="research"><span class="material-symbols-outlined">search</span> Research</button>
   </nav>
 
   <!-- Main Content -->
