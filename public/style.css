@@ -285,7 +285,7 @@ textarea:focus {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent-light) 0%, var(--accent) 50%, var(--accent-container) 100%);
   color: var(--accent-text);
   border: none;
   border-radius: var(--radius);
@@ -294,14 +294,19 @@ textarea:focus {
   font-size: 0.9rem;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
+  transition: filter 0.15s, transform 0.1s, box-shadow 0.15s;
   margin-top: 4px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  box-shadow: 0 0 18px rgba(171, 214, 0, 0.25);
 }
-.btn-primary:hover { background: var(--accent-light); transform: scale(0.98); }
-.btn-primary:active { transform: scale(0.95); }
-.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.btn-primary:hover {
+  filter: brightness(1.1);
+  transform: scale(0.98);
+  box-shadow: 0 0 28px rgba(171, 214, 0, 0.4);
+}
+.btn-primary:active { transform: scale(0.95); filter: brightness(0.95); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
 
 .btn-secondary {
   display: inline-flex;
