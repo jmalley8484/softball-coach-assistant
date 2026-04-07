@@ -86,6 +86,7 @@ planForm.addEventListener('submit', async (e) => {
   const players = document.getElementById('players').value;
   const focus = document.getElementById('focus').value;
   const notes = document.getElementById('notes').value;
+  const detailLevel = document.getElementById('detail-level').value;
 
   currentPlanId = null;
   planSubmit.disabled = true;
@@ -100,7 +101,7 @@ planForm.addEventListener('submit', async (e) => {
     const res = await fetch('/api/practice-plan', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ location, duration, players, focus, notes }),
+      body: JSON.stringify({ location, duration, players, focus, notes, detailLevel }),
     });
     await consumeStream(res, planOutputText, null, (meta) => {
       if (meta.plan_id) {

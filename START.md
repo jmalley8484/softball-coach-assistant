@@ -48,6 +48,36 @@ then open: **http://[your-computer-ip]:3000**
 - Chat history is saved within a session but resets when you refresh
 - For best results on the Practice Plan, be specific in the "Additional Notes" field
 
+## Docker / NAS Deployment
+
+To run the app 24/7 on a Synology NAS (or any Docker host):
+
+1. **Copy the `app/` folder** to the NAS (e.g., `/volume1/docker/softball-coach/`)
+
+2. **Create a `.env` file** on the NAS with your secrets:
+   ```
+   ANTHROPIC_API_KEY=sk-ant-...
+   SUPABASE_URL=https://xxxxx.supabase.co
+   SUPABASE_ANON_KEY=eyJhbGc...
+   ```
+
+3. **Build and start** (SSH into the NAS):
+   ```
+   cd /volume1/docker/softball-coach
+   docker-compose up -d --build
+   ```
+
+4. **Access the app** from any device on the network:
+   ```
+   http://192.168.68.132:3080
+   ```
+
+**Useful commands:**
+- View logs: `docker-compose logs -f softball-coach`
+- Restart: `docker-compose restart`
+- Rebuild after code changes: `docker-compose up -d --build`
+- Stop: `docker-compose down`
+
 ## Troubleshooting
 
 - **"Cannot find module '@anthropic-ai/sdk'"** → Run `npm install` in the app folder

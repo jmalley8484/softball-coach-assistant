@@ -355,8 +355,71 @@ ${historyCtx}${freqCtx}\n\n`;
 });
 
 // ---- Practice Plan Generator (streaming SSE) ----
+
+function buildPlanPrompt(detailLevel, { dateStr, phase, location, duration, players, focus, notes, historyCtx, freqCtx }) {
+  const context = `Date: ${dateStr}
+Season Phase: ${phase.name} -- ${phase.description}
+Practice Location: ${location}
+Duration: ${duration} minutes
+Number of Players: ${players || '10-12'}
+Primary Focus: ${focus}
+Additional Notes: ${notes || 'None'}
+${historyCtx}${freqCtx}`;
+
+  if (detailLevel === 'quick') {
+    return `Generate a concise, 1-page practice plan for today. Keep it brief -- this will be sent to the team.
+
+${context}
+
+Format as a simple outline:
+- List each segment with its time allocation (e.g., "Bands & Huddle -- 5 min")
+- Include drill names and group rotation counts, but NO detailed descriptions or coaching cues
+- Include the daily throwing progression steps by name only (no explanations)
+- Include fielding EDDs by name only
+- ALWAYS end with a fun game or competition drill -- this is required
+- End with Team Goals (Have fun! Be a great Teammate! Get better every day!)
+- Do NOT include Megrem Softball references
+- Keep the entire plan under 400 words`;
+  }
+
+  if (detailLevel === 'standard') {
+    return `Generate a practice plan for today with moderate detail.
+
+${context}
+
+Create a structured practice plan:
+- Follow our standard structure (bands, huddle, dynamic warmup, throwing progression, fielding EDDs, hitting stations, game, huddle)
+- Include specific drill names, time allocations, and group rotations
+- Include 1-2 key coaching cues per drill (brief, actionable)
+- Include the daily throwing progression and fielding EDDs
+- Adapt for the current season phase and location (${location})
+- ALWAYS end with a fun game or competition drill -- this is required
+- End with Team Goals (Have fun! Be a great Teammate! Get better every day!)
+- Do NOT include Megrem Softball references
+- Keep the plan concise but informative`;
+  }
+
+  // detailed -- current full behavior
+  return `Generate a complete, detailed practice plan for today.
+
+${context}
+
+Create a fully structured practice plan:
+- Follow our standard structure (bands, huddle, dynamic warmup, throwing progression, fielding EDDs, hitting stations, game, huddle)
+- Include specific drill names, time allocations, group rotations, and coaching cues
+- Include the daily throwing progression and fielding EDDs
+- Adapt for the current season phase and location (${location})
+- ALWAYS end with a fun game or competition drill (Home Run Derby, Fielding Olympics, Around the World, 21 Outs, etc.) -- this is required
+- End with Team Goals (Have fun! Be a great Teammate! Get better every day!)
+- Add a "Megrem Softball Reference" section with 2-3 YouTube search suggestions
+
+Format it cleanly for printing.`;
+}
+
+const MAX_TOKENS_BY_LEVEL = { quick: 1200, standard: 2500, detailed: 4096 };
+
 app.post('/api/practice-plan', async (req, res) => {
-  const { location, duration, players, focus, notes } = req.body;
+  const { location, duration, players, focus, notes, detailLevel = 'quick' } = req.body;
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -368,34 +431,14 @@ app.post('/api/practice-plan', async (req, res) => {
   const dateStr = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const [historyCtx, freqCtx] = await Promise.all([buildHistoryContext(5), getDrillFrequency()]);
 
-  const prompt = `Generate a complete, detailed practice plan for today.
-
-Date: ${dateStr}
-Season Phase: ${phase.name} — ${phase.description}
-Practice Location: ${location}
-Duration: ${duration} minutes
-Number of Players: ${players || '10-12'}
-Primary Focus: ${focus}
-Additional Notes: ${notes || 'None'}
-${historyCtx}${freqCtx}
-
-Create a fully structured practice plan:
-- Follow our standard structure (bands, huddle, dynamic warmup, throwing progression, fielding EDDs, hitting stations, game, huddle)
-- Include specific drill names, time allocations, group rotations, and coaching cues
-- Include the daily throwing progression and fielding EDDs
-- Adapt for the current season phase and location (${location})
-- ALWAYS end with a fun game or competition drill (Home Run Derby, Fielding Olympics, Around the World, 21 Outs, etc.) — this is required
-- End with Team Goals (Have fun! Be a great Teammate! Get better every day!)
-- Add a "Megrem Softball Reference" section with 2-3 YouTube search suggestions
-
-Format it cleanly for printing.`;
+  const prompt = buildPlanPrompt(detailLevel, { dateStr, phase, location, duration, players, focus, notes, historyCtx, freqCtx });
 
   let fullPlanText = '';
 
   try {
     const stream = await client.messages.stream({
       model: 'claude-opus-4-6',
-      max_tokens: 4096,
+      max_tokens: MAX_TOKENS_BY_LEVEL[detailLevel] || 4096,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: prompt }],
     });
