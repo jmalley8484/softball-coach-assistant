@@ -310,6 +310,7 @@ app.get('/api/practice-stats', async (req, res) => {
 });
 
 // ---- Chat (streaming SSE) ----
+// Uses Haiku -- fast and cheap for conversational Q&A
 app.post('/api/chat', async (req, res) => {
   const { messages } = req.body;
   if (!messages || !Array.isArray(messages)) return res.status(400).json({ error: 'messages array required' });
@@ -336,8 +337,8 @@ ${historyCtx}${freqCtx}\n\n`;
 
   try {
     const stream = await client.messages.stream({
-      model: 'claude-opus-4-6',
-      max_tokens: 4096,
+      model: 'claude-haiku-4-5',
+      max_tokens: 2048,
       system: SYSTEM_PROMPT,
       messages: enrichedMessages,
     });
@@ -418,6 +419,11 @@ Format it cleanly for printing.`;
 
 const MAX_TOKENS_BY_LEVEL = { quick: 1200, standard: 2500, detailed: 4096 };
 
+// Model strategy:
+// quick/standard -- Haiku (cheap, fast, handles structured output well)
+// detailed -- Haiku executor + Opus advisor (best quality where it matters, lower cost than pure Opus)
+const MODEL_BY_LEVEL = { quick: 'claude-haiku-4-5', standard: 'claude-haiku-4-5', detailed: 'claude-haiku-4-5' };
+
 app.post('/api/practice-plan', async (req, res) => {
   const { location, duration, players, focus, notes, detailLevel = 'quick' } = req.body;
 
@@ -435,13 +441,28 @@ app.post('/api/practice-plan', async (req, res) => {
 
   let fullPlanText = '';
 
-  try {
-    const stream = await client.messages.stream({
+  // Detailed plans use the Advisor pattern: Haiku executor consults Opus for strategic planning
+  const streamParams = {
+    model: MODEL_BY_LEVEL[detailLevel] || 'claude-haiku-4-5',
+    max_tokens: MAX_TOKENS_BY_LEVEL[detailLevel] || 2500,
+    system: SYSTEM_PROMPT,
+    messages: [{ role: 'user', content: prompt }],
+  };
+  if (detailLevel === 'detailed') {
+    streamParams.tools = [{
+      type: 'advisor_20260301',
+      name: 'advisor',
       model: 'claude-opus-4-6',
-      max_tokens: MAX_TOKENS_BY_LEVEL[detailLevel] || 4096,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: prompt }],
-    });
+      max_uses: 2,
+    }];
+  }
+
+  try {
+    const streamOptions = detailLevel === 'detailed'
+      ? { headers: { 'anthropic-beta': 'advisor-tool-2026-03-01' } }
+      : {};
+
+    const stream = await client.messages.stream(streamParams, streamOptions);
     for await (const event of stream) {
       if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
         fullPlanText += event.delta.text;
@@ -486,9 +507,10 @@ Please provide:
 
 Keep it practical and immediately usable at practice.`;
 
+  // Research uses Haiku -- structured reference content, no complex reasoning needed
   try {
     const stream = await client.messages.stream({
-      model: 'claude-opus-4-6',
+      model: 'claude-haiku-4-5',
       max_tokens: 2048,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: prompt }],
