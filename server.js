@@ -102,7 +102,7 @@ app.get('/api/season-phase', (req, res) => {
 app.get('/api/drills', async (req, res) => {
   const { data, error } = await supabase
     .from('sc_drills')
-    .select('id, name, category, skill_level, variations')
+    .select('id, name, category, skill_level, description, setup, execution, coaching_tips, variations')
     .eq('is_active', true)
     .order('category')
     .order('name');
@@ -479,6 +479,125 @@ app.post('/api/practice-plan', async (req, res) => {
       .single();
 
     res.write(`data: ${JSON.stringify({ type: 'done', plan_id: saved?.id })}\n\n`);
+    res.end();
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`);
+    res.end();
+  }
+});
+
+// ---- Weekly Practice Plan ----
+
+function buildWeeklyPlanPrompt({ practiceCount, weeklyTheme, pcDuration, gamesThisWeek, notes, historyCtx, freqCtx, dateStr, phase }) {
+  const warmupMin = 15;
+  const condMin = 10;
+  const mainMin = 120 - pcDuration;
+  const coreMin = mainMin - warmupMin - condMin;
+
+  const gamesCtx = {
+    none: 'No games this week.',
+    before: 'A game falls BEFORE at least one practice. Reduce intensity that day — lighter on physical load.',
+    after: 'A game falls AFTER at least one practice. Keep that practice sharp but not exhausting.',
+    multiple: 'Multiple games this week. Manage load carefully — prioritize sharpness over conditioning volume.',
+  }[gamesThisWeek] || 'No games this week.';
+
+  return `Build a ${practiceCount}-practice weekly plan for a 10U travel softball team.
+
+WEEK DETAILS:
+- Date: ${dateStr}
+- Season Phase: ${phase.name}
+- Weekly Theme: ${weeklyTheme} (gets extra time/emphasis, but does NOT replace other areas)
+- P/C Block: ${pcDuration} min at END of every practice (pitchers/catchers only — rest of team is done)
+- Total per practice: 120 min = ${warmupMin}min warmup + ${coreMin}min core skill work + ${condMin}min conditioning game + ${pcDuration}min P/C
+- Games this week: ${gamesCtx}
+- Additional Notes: ${notes || 'None'}
+${historyCtx}${freqCtx}
+
+PLANNING RULES:
+1. Every practice hits ALL pillars: warmup, hitting, fielding/defense, conditioning game, P/C
+2. Circle Hitting (5 stages) is ALWAYS the first thing in the hitting block
+3. Weekly theme gets the most time in the core block and builds across practices:
+   - Practice 1: Introduce concept / drill it
+   - Practice 2: Apply at game speed, competitive reps
+   - Practice 3+: Reinforce + situational pressure
+4. Conditioning game ends EVERY main practice -- use 5 Ball, Four Corners, Sprint Relays, Star Drill, or similar
+5. Keep total block minutes = exactly 120 per practice (warmup + core blocks + conditioning + P/C)
+6. Be specific: name actual drills and times within each item string (e.g. "Circle Hitting — 5 stages (5 min)")
+
+OUTPUT: Return ONLY valid JSON — no markdown fences, no explanation, no preamble. Exactly this schema:
+
+{
+  "theme": "${weeklyTheme}",
+  "theme_focus": "one sentence describing what makes this week's emphasis special",
+  "practices": [
+    {
+      "number": 1,
+      "label": "Practice 1 — Introduce",
+      "total_minutes": 120,
+      "pc_minutes": ${pcDuration},
+      "blocks": [
+        { "id": "p1-b1", "type": "warmup",      "label": "Warmup",           "minutes": ${warmupMin}, "items": ["High-knees", "Butt-kickers", "Cherry pickers", "Defensive shuffles", "Karaoke", "Sprints", "Static stretches", "Wrist flicks", "One-knee throws", "Cement feet", "Normal throws"] },
+        { "id": "p1-b2", "type": "hitting",     "label": "Hitting",          "minutes": 20, "items": ["Circle Hitting — 5 stages (5 min)", "Tee work — top/bottom hand (10 min)", "Front toss (5 min)"] },
+        { "id": "p1-b3", "type": "defense",     "label": "Team Defense",     "minutes": 25, "items": ["...specific drills..."] },
+        { "id": "p1-b4", "type": "conditioning","label": "Conditioning Game", "minutes": ${condMin}, "items": ["5 Ball — 3 rounds (triangle cones, 5 balls, steal to your base, first to 3 wins)"] },
+        { "id": "p1-b5", "type": "pc",          "label": "Pitching / Catching", "minutes": ${pcDuration}, "items": ["...specific P/C drills..."] }
+      ]
+    }
+  ]
+}
+
+Valid block types: warmup, hitting, fielding, defense, baserunning, situations, conditioning, pc
+Vary the drills based on the weekly theme and practice progression. Make all ${practiceCount} practices distinct.`;
+}
+
+app.post('/api/weekly-plan', async (req, res) => {
+  const { practiceCount = 3, weeklyTheme = 'Mixed', pcDuration = 30, gamesThisWeek = 'none', notes } = req.body;
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  try {
+    res.write(`data: ${JSON.stringify({ type: 'status', text: `Building ${practiceCount}-practice week plan...` })}\n\n`);
+
+    const today = new Date();
+    const phase = getCurrentPhase(today);
+    const dateStr = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const [historyCtx, freqCtx] = await Promise.all([buildHistoryContext(5), getDrillFrequency()]);
+
+    const prompt = buildWeeklyPlanPrompt({ practiceCount, weeklyTheme, pcDuration, gamesThisWeek, notes, historyCtx, freqCtx, dateStr, phase });
+
+    const response = await client.messages.create({
+      model: 'claude-haiku-4-5',
+      max_tokens: 6000,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    let rawText = (response.content[0]?.text || '').trim();
+    // Strip markdown code fences if Claude wrapped it anyway
+    if (rawText.startsWith('```')) {
+      rawText = rawText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+    }
+
+    const weeklyPlan = JSON.parse(rawText);
+
+    // Auto-save each practice as a row in sc_practice_plans
+    const today_str = today.toISOString().split('T')[0];
+    for (const practice of weeklyPlan.practices) {
+      await supabase.from('sc_practice_plans').insert({
+        date: today_str,
+        location: 'Outdoor Field',
+        duration: 120,
+        focus: `Weekly: ${weeklyTheme} — ${practice.label}`,
+        plan_text: JSON.stringify(practice, null, 2),
+        notes: `Theme: ${weeklyTheme} | P/C: ${pcDuration}min | Games: ${gamesThisWeek}`,
+      });
+    }
+
+    res.write(`data: ${JSON.stringify({ type: 'weekly-plan', data: weeklyPlan })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
     res.end();
   } catch (err) {
     res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`);

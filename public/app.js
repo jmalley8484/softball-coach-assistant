@@ -13,6 +13,121 @@ const CATEGORY_META = {
   games:       { label: 'Games & Compete', emoji: '🎮', color: '#ad1457', bg: '#fce4ec' },
 };
 
+// ---- Drill Cache & Details ----
+const drillCache = {};
+let allDrills = [];
+
+async function fetchDrillList() {
+  if (allDrills.length === 0) {
+    try {
+      const res = await fetch('/api/drills');
+      allDrills = await res.json();
+    } catch (err) {
+      console.error('Failed to fetch drills:', err);
+      allDrills = [];
+    }
+  }
+  return allDrills;
+}
+
+async function getDrillDetails(drillId) {
+  if (!drillCache[drillId]) {
+    const drill = allDrills.find(d => d.id === drillId);
+    if (drill) drillCache[drillId] = drill;
+  }
+  return drillCache[drillId];
+}
+
+async function makeDrillsClickable(planElement) {
+  const drills = await fetchDrillList();
+  if (drills.length === 0 || !planElement) return;
+
+  const text = planElement.textContent;
+  const drillNames = drills.map(d => d.name);
+
+  // Create a DocumentFragment to build the new HTML
+  const fragment = document.createDocumentFragment();
+  let lastIndex = 0;
+
+  // Find all drill names in the text (case-insensitive search, but preserve original case)
+  const drillMatches = [];
+  drillNames.forEach(drillName => {
+    const regex = new RegExp(`\\b${drillName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      drillMatches.push({
+        name: drillName,
+        start: match.index,
+        end: match.index + match[0].length,
+        originalText: match[0],
+        drill: drills.find(d => d.name.toLowerCase() === drillName.toLowerCase())
+      });
+    }
+  });
+
+  // Sort by position
+  drillMatches.sort((a, b) => a.start - b.start);
+
+  // Remove duplicates (overlapping matches)
+  const uniqueMatches = [];
+  let lastEnd = 0;
+  drillMatches.forEach(match => {
+    if (match.start >= lastEnd) {
+      uniqueMatches.push(match);
+      lastEnd = match.end;
+    }
+  });
+
+  // Build HTML with drill links
+  let html = '';
+  lastIndex = 0;
+
+  uniqueMatches.forEach(match => {
+    // Add text before this match
+    html += escapeHtml(text.substring(lastIndex, match.start));
+    // Add drill link
+    html += `<span class="drill-link" data-drill-id="${match.drill.id}" data-drill-name="${escapeHtml(match.drill.name)}"><strong>${escapeHtml(match.originalText)}</strong> ℹ️</span>`;
+    lastIndex = match.end;
+  });
+
+  // Add remaining text
+  html += escapeHtml(text.substring(lastIndex));
+
+  // Clear and set HTML
+  planElement.innerHTML = html;
+
+  // Add click handlers to drill links
+  planElement.querySelectorAll('.drill-link').forEach(link => {
+    link.addEventListener('click', async () => {
+      const drillId = parseInt(link.dataset.drillId);
+      const drill = await getDrillDetails(drillId);
+      if (!drill) return;
+
+      // Check if detail card already exists
+      let detailCard = link.nextElementSibling;
+      if (detailCard && detailCard.classList.contains('drill-detail-card')) {
+        detailCard.classList.toggle('open');
+      } else {
+        detailCard = document.createElement('div');
+        detailCard.className = 'drill-detail-card open';
+
+        let html = '';
+        if (drill.setup) html += `<div class="drill-detail-section"><h4>Setup</h4><p>${escapeHtml(drill.setup)}</p></div>`;
+        if (drill.execution) html += `<div class="drill-detail-section"><h4>Execution</h4><p>${escapeHtml(drill.execution)}</p></div>`;
+        if (drill.coaching_tips) html += `<div class="drill-detail-section"><h4>Coaching Tips</h4><p>${escapeHtml(drill.coaching_tips)}</p></div>`;
+
+        detailCard.innerHTML = html;
+        link.insertAdjacentElement('afterend', detailCard);
+      }
+    });
+  });
+}
+
+function escapeHtml(text) {
+  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+  return text.replace(/[&<>"']/g, m => map[m]);
+}
+
 // ---- Tab Switching ----
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -115,6 +230,7 @@ planForm.addEventListener('submit', async (e) => {
     planSubmit.disabled = false;
     planSubmit.innerHTML = '<span class="btn-icon">📋</span> Generate Practice Plan';
     planOutputText.classList.remove('streaming-cursor');
+    await makeDrillsClickable(planOutputText);
     planOutput.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 });
@@ -580,6 +696,217 @@ researchForm.addEventListener('submit', async (e) => {
     researchOutput.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 });
+
+// ---- Weekly Practice Planner ----
+
+const BLOCK_ICONS = {
+  warmup:      '🏃',
+  hitting:     '⚾',
+  fielding:    '🧤',
+  defense:     '🛡️',
+  baserunning: '💨',
+  situations:  '🤝',
+  conditioning:'🔥',
+  pc:          '🥎',
+};
+
+// Mode toggle
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const mode = btn.dataset.mode;
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (mode === 'single') {
+      document.getElementById('plan-form').classList.remove('hidden');
+      document.getElementById('weekly-form').classList.add('hidden');
+      document.getElementById('plan-output').classList.remove('hidden');
+      document.getElementById('weekly-output').classList.add('hidden');
+    } else {
+      document.getElementById('plan-form').classList.add('hidden');
+      document.getElementById('weekly-form').classList.remove('hidden');
+      document.getElementById('plan-output').classList.add('hidden');
+      document.getElementById('weekly-output').classList.add('hidden');
+    }
+  });
+});
+
+// Weekly form submit
+const weeklyForm = document.getElementById('weekly-form');
+const weeklyOutput = document.getElementById('weekly-output');
+const weeklySubmit = document.getElementById('weekly-submit');
+
+weeklyForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const practiceCount = parseInt(document.getElementById('weekly-practices').value);
+  const weeklyTheme   = document.getElementById('weekly-theme').value;
+  const pcDuration    = parseInt(document.getElementById('weekly-pc').value);
+  const gamesThisWeek = document.getElementById('weekly-games').value;
+  const notes         = document.getElementById('weekly-notes').value;
+
+  weeklySubmit.disabled = true;
+  weeklySubmit.innerHTML = '⏳ Building...';
+
+  // Show output area with spinner
+  weeklyOutput.classList.remove('hidden');
+  weeklyOutput.innerHTML = `
+    <div class="weekly-generating">
+      <div class="weekly-spinner"></div>
+      <div class="weekly-generating-text">Building your ${practiceCount}-practice week plan...</div>
+    </div>`;
+
+  try {
+    const res = await fetch('/api/weekly-plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ practiceCount, weeklyTheme, pcDuration, gamesThisWeek, notes }),
+    });
+
+    await consumeWeeklyStream(res);
+  } catch (err) {
+    weeklyOutput.innerHTML = `<div style="padding:24px;color:var(--error)">Error: ${err.message}</div>`;
+  } finally {
+    weeklySubmit.disabled = false;
+    weeklySubmit.innerHTML = '<span class="btn-icon">📅</span> Build Weekly Plan';
+  }
+});
+
+async function consumeWeeklyStream(res) {
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
+
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      try {
+        const data = JSON.parse(line.slice(6));
+        if (data.type === 'status') {
+          const statusEl = weeklyOutput.querySelector('.weekly-generating-text');
+          if (statusEl) statusEl.textContent = data.text;
+        } else if (data.type === 'weekly-plan') {
+          renderWeeklyPlan(data.data);
+          weeklyOutput.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else if (data.type === 'error') {
+          weeklyOutput.innerHTML = `<div style="padding:24px;color:var(--error)">Error: ${data.message}</div>`;
+        }
+      } catch { /* ignore */ }
+    }
+  }
+}
+
+function renderWeeklyPlan(plan) {
+  // Rebuild the output area with proper structure
+  weeklyOutput.innerHTML = `
+    <div class="weekly-header">
+      <div class="weekly-meta">
+        <span class="theme-badge" id="weekly-theme-badge"></span>
+        <span class="weekly-focus-text" id="weekly-focus-text"></span>
+      </div>
+      <div class="output-actions">
+        <button class="btn-ghost" id="weekly-clear-btn">✕ Clear</button>
+      </div>
+    </div>
+    <div class="practice-tabs" id="practice-tabs"></div>
+    <div class="practice-cards" id="practice-cards"></div>`;
+
+  document.getElementById('weekly-theme-badge').textContent = plan.theme;
+  document.getElementById('weekly-focus-text').textContent  = plan.theme_focus;
+  document.getElementById('weekly-clear-btn').addEventListener('click', () => {
+    weeklyOutput.classList.add('hidden');
+  });
+
+  const tabsEl  = document.getElementById('practice-tabs');
+  const cardsEl = document.getElementById('practice-cards');
+
+  plan.practices.forEach((practice, idx) => {
+    // Tab button
+    const tab = document.createElement('button');
+    tab.className = 'practice-tab-btn' + (idx === 0 ? ' active' : '');
+    tab.textContent = practice.label;
+    tab.dataset.idx = idx;
+    tabsEl.appendChild(tab);
+
+    // Practice card
+    const card = document.createElement('div');
+    card.className = 'practice-card' + (idx === 0 ? ' active' : '');
+    card.dataset.idx = idx;
+
+    const mainMin = practice.total_minutes - practice.pc_minutes;
+    card.innerHTML = `
+      <div class="practice-card-meta">
+        <span class="practice-card-label">${practice.label}</span>
+        <span class="practice-card-time">${mainMin} min team + ${practice.pc_minutes} min P/C</span>
+        <span class="drag-hint">⠿ drag to reorder</span>
+      </div>
+      <div class="blocks-container" id="blocks-${idx}"></div>`;
+
+    const blocksContainer = card.querySelector(`#blocks-${idx}`);
+
+    practice.blocks.forEach(block => {
+      const blockEl = document.createElement('div');
+      blockEl.className = 'block-card';
+      blockEl.dataset.id   = block.id;
+      blockEl.dataset.type = block.type;
+
+      const icon = BLOCK_ICONS[block.type] || '📋';
+      blockEl.innerHTML = `
+        <div class="block-header">
+          <span class="block-handle" title="Drag to reorder">⠿</span>
+          <span class="block-icon">${icon}</span>
+          <span class="block-label">${block.label}</span>
+          <span class="block-duration">${block.minutes} min</span>
+        </div>
+        <ul class="block-drill-list" id="drills-${block.id}">
+          ${block.items.map(item => `
+            <li class="block-drill-item">
+              <span class="drill-handle" title="Drag to reorder">⠿</span>
+              <span>${item}</span>
+            </li>`).join('')}
+        </ul>`;
+
+      blocksContainer.appendChild(blockEl);
+
+      // SortableJS for drill reordering within this block
+      if (typeof Sortable !== 'undefined') {
+        Sortable.create(blockEl.querySelector(`#drills-${block.id}`), {
+          handle: '.drill-handle',
+          animation: 100,
+          ghostClass: 'sortable-ghost',
+          dragClass: 'sortable-drag',
+        });
+      }
+    });
+
+    // SortableJS for block reordering within this practice
+    if (typeof Sortable !== 'undefined') {
+      Sortable.create(blocksContainer, {
+        handle: '.block-handle',
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        dragClass: 'sortable-drag',
+      });
+    }
+
+    cardsEl.appendChild(card);
+  });
+
+  // Tab click switching
+  tabsEl.querySelectorAll('.practice-tab-btn').forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabsEl.querySelectorAll('.practice-tab-btn').forEach(t => t.classList.remove('active'));
+      cardsEl.querySelectorAll('.practice-card').forEach(c => c.classList.remove('active'));
+      tab.classList.add('active');
+      cardsEl.querySelector(`.practice-card[data-idx="${tab.dataset.idx}"]`).classList.add('active');
+    });
+  });
+}
 
 // ---- Stream Consumer ----
 async function consumeStream(res, element, onChunk = null, onMeta = null) {
